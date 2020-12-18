@@ -83,6 +83,11 @@ async def tick(config, queue):
         await asyncio.sleep(1)
         await queue.put(TimeoutTick())
 
+async def update_scripts(config, queue):
+    while True:
+        await asyncio.sleep(60*60) # check and update hourly
+        init_view(config)
+
 async def control(config, queue):
     import RPi.GPIO as GPIO
 
@@ -230,6 +235,7 @@ streams = [
     check_weather,
     tick,
     control,
+    update_scripts,
 ]
 
 def init_view(config):
