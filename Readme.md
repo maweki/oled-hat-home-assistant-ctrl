@@ -2,7 +2,7 @@
 
 This is an application to run home-assistant scripts using the waveshare 1.3" OLED HAT.
 
-![HAT in Action](https://github.com/maweki/oled-hat-home-assistant-ctrl/blob/master/2020-12-18 16.19.19.jpg?raw=true)
+![HAT in Action](https://github.com/maweki/oled-hat-home-assistant-ctrl/blob/main/example_img.jpg?raw=true)
 
 ## Usage
 
