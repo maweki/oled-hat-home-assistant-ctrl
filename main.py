@@ -268,18 +268,23 @@ def render(device):
         font_large = ImageFont.truetype("4x5.ttf", 10)
         font_small = ImageFont.truetype("4x5.ttf", 5)
 
+        # Favorites
         for n, fav in enumerate(View.favs):
             draw.text((0, n*6), str(n+1) + ": " + fav.replace("_", " "), anchor="lt", fill="white", font=font_small)
 
+        # full horizontal divider
         draw.line([(0,51),(128,51)], fill="white")
 
         if not View.notification:
+            # Current Temperature
             draw.text((34, 63), '{:3.1f}'.format(View.temp_now), anchor="rb", fill="white", font=font_large)
 
+            # Vertical divider
             draw.line([(33,51),(33,64)], fill="white")
 
-            draw.text((36+10+17+1, 64), '{:3.1f}'.format(View.today[0]), anchor="rb", fill="white", font=font_small)
-            draw.text((36+10+17+1, 64-6), '{:3.1f}'.format(View.today[1]), anchor="rb", fill="white", font=font_small)
+            # Today's weather
+            draw.text((64, 58), '{:3.1f}'.format(View.today[1]), anchor="rb", fill="white", font=font_small)
+            draw.text((64, 64), '{:3.1f}'.format(View.today[0]), anchor="rb", fill="white", font=font_small)
             img = 'img/' + View.today[2] + '.bmp'
             try:
                 bmp = Image.open(img).convert("1")
@@ -287,27 +292,33 @@ def render(device):
             except Exception as e:
                 print(e)
 
-            draw.line([(36+10+17+1,51),(36+10+17+1,64)], fill="white")
+            # Vertical Divider
+            draw.line([(64,51),(64,64)], fill="white")
 
-            draw.text((36+10+17+2+10+17+3, 64), '{:3.1f}'.format(View.tomorrow[0]), anchor="rb", fill="white", font=font_small)
-            draw.text((36+10+17+2+10+17+3, 64-6), '{:3.1f}'.format(View.tomorrow[1]), anchor="rb", fill="white", font=font_small)
+            # Tomorrow's weather
+            draw.text((95, 64), '{:3.1f}'.format(View.tomorrow[0]), anchor="rb", fill="white", font=font_small)
+            draw.text((95, 58), '{:3.1f}'.format(View.tomorrow[1]), anchor="rb", fill="white", font=font_small)
             img = 'img/' + View.tomorrow[2] + '.bmp'
             try:
                 bmp = Image.open(img).convert("1")
-                draw.bitmap((36+10+17+3,53), bmp, fill="white")
+                draw.bitmap((66,53), bmp, fill="white")
             except Exception as e:
                 print(e)
 
-            draw.line([(36+10+17+2+10+17+3,51),(36+10+17+2+10+17+3,64)], fill="white")
+            # Vertical Divider
+            draw.line([(95,51),(95,64)], fill="white")
 
+            # Current date and time
             now = datetime.datetime.now()
-            draw.text((129, 64-6), now.strftime("%a%H:%M"), anchor="rb", fill="white", font=font_small)
+            draw.text((129, 58), now.strftime("%a%H:%M"), anchor="rb", fill="white", font=font_small)
             draw.text((129, 64), now.strftime("%d.%b"), anchor="rb", fill="white", font=font_small)
         else:
             draw.text((0, 63), View.notification.replace("_", " "), anchor="lb", fill="white", font=font_large)
 
+        # full horizontal divider
         draw.line([(0,18),(128,18)], fill="white")
 
+        # Script list
         page = View.idx // 5
         local_idx = View.idx % 5
         items = View.items[page*5:page*5+5]
