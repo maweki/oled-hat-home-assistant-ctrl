@@ -239,16 +239,27 @@ streams = [
 ]
 
 def init_view(config):
-    endpoint = config.api + 'services'
     headers = get_headers(config.token)
     ret = requests.get(
-        endpoint,
+        config.api + 'services',
         headers=headers,
     )
     for domain in ret.json():
         if domain["domain"] == "script":
             break
-    services = list(service for service in domain["services"] if not domain["services"][service]["fields"])
+    scripts_without_fields = list(service for service in domain["services"] if not domain["services"][service]["fields"])
+
+    ret = requests.get(
+        config.api + 'states',
+        headers=headers,
+    )
+
+    services = []
+    for state in ret.json():
+        if state["entity_id"].startswith("script."):
+            scriptname = state["entity_id"][7:]
+            if scriptname in scripts_without_fields:
+                services.append(scriptname)
     View.items = services
 
     with shelve.open('favs') as db:
