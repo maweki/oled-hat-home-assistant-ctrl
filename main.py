@@ -323,12 +323,15 @@ def render(device):
         local_idx = View.idx % 5
         items = View.items[page*5:page*5+5]
         for n, item in enumerate(items):
-            draw.text((6,20+n*6), items[n].replace("_", " "), fill="white", font=font_small)
             if local_idx == n:
+                draw.rectangle([(0,20+n*6),(128,26+n*6)], fill="white")
                 if not View.hold:
-                    draw.polygon([(0,20+n*6),(0,24+n*6),(4,22+n*6)], fill="white")
+                    draw.polygon([(0,21+n*6),(0,25+n*6),(4,23+n*6)], fill="black")
                 else:
-                    draw.rectangle([(0,20+n*6),(4,24+n*6)], fill="white")
+                    draw.rectangle([(0,21+n*6),(4,25+n*6)], fill="black")
+                draw.text((6,21+n*6), items[n].replace("_", " "), fill="black", font=font_small)
+            else:
+                draw.text((6,21+n*6), items[n].replace("_", " "), fill="white", font=font_small)
 
 async def main():
 
