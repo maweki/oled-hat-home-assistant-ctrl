@@ -14,6 +14,24 @@ Start it with `python3 main.py http://url-to-api/api/ here-comes-the-long-living
 * **Hold Key Button:** Saves the script that currently is selected as favorite in that position
 * **Key Button:** Calls the script that currently is selected as favorite in that position
 
+You could easily make it a systemd service:
+
+```
+[Unit]
+Description=oled-hat-home-assistant-ctrl
+After=network.target
+[Service]
+Type=simple
+User=root
+ExecStart=python3 main.py http://hass.local:8123/api/ token
+WorkingDirectory=/root/oled-hat-home-assistant-ctrl/
+Restart=always
+RestartSec=30
+[Install]
+WantedBy=multi-user.target
+
+```
+
 ## Requirements
 
 Infrastructure and Hardware:
