@@ -72,6 +72,30 @@ class Entity:
     def type(self):
         return self._entity_obj["entity_id"].split('.')[0]
 
+    def draw(self, context, start, font, invert=False):
+        (draw_color, inv_color) = ("black", "white") if invert else ("white", "black")
+
+        if self.type == "script":
+            if self.state == "on":
+                context.polygon([(0,start),(0,start+4),(2,start+2)], fill=draw_color)
+                context.polygon([(2,start),(2,start+4),(4,start+2)], fill=draw_color)
+            elif self.state == "off":
+                context.polygon([(0,start),(0,start+4),(4,start+2)], fill=draw_color)
+
+        if self.type == "light":
+            if self.state == "on":
+                context.ellipse([(0,start),(4,start+4)], fill=draw_color, outline=draw_color)
+            elif self.state == "off":
+                context.ellipse([(0,start),(4,start+4)], fill=inv_color, outline=draw_color)
+
+        if self.type == "switch":
+            if self.state == "on":
+                context.rectangle([(1,start),(3,start+4)], fill=draw_color, outline=draw_color)
+            elif self.state == "off":
+                context.rectangle([(1,start),(3,start+4)], fill=inv_color, outline=draw_color)
+
+        context.text((7,start), self.name, fill=draw_color, font=font)
+
     def toggle(self):
         print("toggle " + self._entity_obj["entity_id"])
         headers = get_headers(self._config.token)
@@ -165,7 +189,7 @@ async def update_states(config, queue):
         if not View.asleep():
             page = View.idx // 5
             local_idx = View.idx % 5
-            items = set(list(View.items.values())[page*5:page*5+5])
+            items = set(list(View.items.values())[page*5:page*5+5]) | set(View.items[fav] for fav in View.favs if fav in View.items)
             for item in items:
                 await item.update()
             await asyncio.sleep(5) # check and update every 5 seconds if not asleep
@@ -361,7 +385,8 @@ def render(device):
         # Favorites
         for n, fav in enumerate(View.favs):
             if fav in View.items:
-                draw.text((0, n*6), str(n+1) + ": " + View.items[fav].name, anchor="lt", fill="white", font=font_small)
+                draw.text((123, n*6), str(n+1), anchor="lt", fill="white", font=font_small)
+                View.items[fav].draw(draw, n*6, font_small)
 
         # full horizontal divider
         draw.line([(0,51),(128,51)], fill="white")
@@ -415,36 +440,15 @@ def render(device):
         items = list(View.items.values())[page*5:page*5+5]
         for n, item in enumerate(items):
             if local_idx == n:
-                draw_color = "black"
-                inv_color = "white"
+                invert = True
                 if not View.hold:
                     draw.rectangle([(0,20+n*6),(128,26+n*6)], fill="white")
                 else:
                     draw.rectangle([(1,21+n*6),(127,25+n*6)], fill="white")
             else:
-                draw_color = "white"
-                inv_color = "black"
+                invert = False
 
-            if item.type == "script":
-                if item.state == "on":
-                    draw.polygon([(0,21+n*6),(0,25+n*6),(2,23+n*6)], fill=draw_color)
-                    draw.polygon([(2,21+n*6),(2,25+n*6),(4,23+n*6)], fill=draw_color)
-                elif item.state == "off":
-                    draw.polygon([(0,21+n*6),(0,25+n*6),(4,23+n*6)], fill=draw_color)
-
-            if item.type == "light":
-                if item.state == "on":
-                    draw.ellipse([(0,21+n*6),(4,25+n*6)], fill=draw_color, outline=draw_color)
-                elif item.state == "off":
-                    draw.ellipse([(0,21+n*6),(4,25+n*6)], fill=inv_color, outline=draw_color)
-
-            if item.type == "switch":
-                if item.state == "on":
-                    draw.rectangle([(1,21+n*6),(3,25+n*6)], fill=draw_color, outline=draw_color)
-                elif item.state == "off":
-                    draw.rectangle([(1,21+n*6),(3,25+n*6)], fill=inv_color, outline=draw_color)
-
-            draw.text((6,21+n*6), items[n].name, fill=draw_color, font=font_small)
+            item.draw(draw, 21+n*6, font_small, invert)
 
 async def main():
 
