@@ -105,31 +105,24 @@ class Entity:
         context.text((7,start), self.name, fill=draw_color, font=font)
 
     def toggle(self):
-        print("toggle " + self._entity_obj["entity_id"])
-        headers = get_headers(self._config.token)
-
         if self.type == "group" and self.state == "on":
-            ret = requests.post(
-                self._config.api + 'services/homeassistant/turn_off',
-                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-                headers=headers,
-            )
+            service = self._config.api + 'services/homeassistant/turn_off'
         else:
-            ret = requests.post(
-                self._config.api + 'services/homeassistant/toggle',
-                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-                headers=headers,
-            )
+            service = self._config.api + 'services/homeassistant/toggle'
 
+        ret = requests.post(
+            service,
+            data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+            headers=get_headers(self._config.token),
+        )
         asyncio.create_task(self.update())
 
     async def update(self):
         endpoint = self._config.api + 'states/' + self._entity_obj["entity_id"]
-        headers = get_headers(self._config.token)
         self._last_update = time.time()
         ret = requests.get(
             endpoint,
-            headers=headers,
+            headers=get_headers(self._config.token),
         )
         self._entity_obj = ret.json()
 
@@ -293,7 +286,8 @@ def _(event: KeyAction, config):
         with shelve.open('favs') as db:
             db['favs'] = View.favs
     else:
-        View.items[View.favs[idx]].toggle()
+        if View.favs[idx] in View.items:
+            View.items[View.favs[idx]].toggle()
 
 @handle.register
 def _(event: TimeoutTick, _):
