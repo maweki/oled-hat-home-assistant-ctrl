@@ -15,6 +15,7 @@ import sys
 
 TIMEOUT = 300
 HOLD_DURATION = 0.4
+NOTIFICATION_TIMEOUT = 3
 
 KEY_UP_PIN     = 6
 KEY_DOWN_PIN   = 19
@@ -34,6 +35,7 @@ class View:
     today = (0,0,"")
     tomorrow = (0,0,"")
     timeout = 0
+    notification_queue = None
     notification = None
     hold = False
 
@@ -111,13 +113,14 @@ class Entity:
 
         context.text((7,start), self.name, fill=draw_color, font=font)
 
-    def toggle(self):
+    async def toggle(self):
         if self.type == "group" and self.state == "on":
             service = self._config.api + 'services/homeassistant/turn_off'
         else:
             service = self._config.api + 'services/homeassistant/toggle'
 
-        ret = requests.post(
+        await View.notification_queue.put(self.name)
+        requests.post(
             service,
             data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
             headers=get_headers(self._config.token),
@@ -182,6 +185,14 @@ async def update_scripts(config, queue):
     while True:
         await asyncio.sleep(60*60) # check and update hourly
         init_view(config)
+
+async def notification_worker(config, queue):
+    while True:
+        notification = await View.notification_queue.get()
+        View.notification = notification
+        await asyncio.sleep(NOTIFICATION_TIMEOUT)
+        View.notification = None
+
 
 async def update_states(config, queue):
     while True:
@@ -281,7 +292,7 @@ def _(event: StickAction, config):
     if event.action == KEY_LEFT_PIN:
         View.idx = max(View.idx - 5, 0)
     if event.action == KEY_PRESS_PIN and event.duration > HOLD_DURATION:
-        View.selected().toggle()
+        asyncio.create_task(View.selected().toggle())
 
 @handle.register
 def _(event: KeyAction, config):
@@ -294,7 +305,7 @@ def _(event: KeyAction, config):
             db['favs'] = View.favs
     else:
         if View.favs[idx] in View.items:
-            View.items[View.favs[idx]].toggle()
+            asyncio.create_task(View.items[View.favs[idx]].toggle())
 
 @handle.register
 def _(event: TimeoutTick, _):
@@ -337,6 +348,7 @@ streams = [
     control,
     update_scripts,
     update_states,
+    notification_worker,
 ]
 
 def init_view(config):
@@ -430,7 +442,11 @@ def render(device):
             draw.text((129, 58), now.strftime("%a%H:%M"), anchor="rb", fill="white", font=font_small)
             draw.text((129, 64), now.strftime("%d.%b"), anchor="rb", fill="white", font=font_small)
         else:
-            draw.text((0, 63), View.notification.replace("_", " "), anchor="lb", fill="white", font=font_large)
+            if len(View.notification) <= 14:
+                draw.text((0, 63), View.notification, anchor="lb", fill="white", font=font_large)
+            else:
+                from textwrap import wrap
+                draw.multiline_text((0, 53), '\n'.join(wrap(View.notification, width=28)), fill="white", font=font_small, spacing=2)
 
         # full horizontal divider
         draw.line([(0,18),(128,18)], fill="white")
@@ -467,6 +483,7 @@ async def main():
     device = sh1106(serial, rotate=2)
 
     # Init streamers
+    View.notification_queue = asyncio.Queue(maxsize=1)
     eventqueue = asyncio.Queue()
     for s in streams:
         asyncio.create_task(s(config, eventqueue))
