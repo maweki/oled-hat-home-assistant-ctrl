@@ -43,8 +43,8 @@ Infrastructure and Hardware:
 
 Software
 
-* Raspbian/Debian packages: `python3-dev, python3-pip, python3-pillow, libfreetype6-dev, libjpeg-dev, libopenjp2-7, python3-pil, zlib1g-dev, liblcms2-dev, libtiff5`
-* Python packages: `luma.oled, requests`
+* Raspbian/Debian packages: `python3-dev, python3-pip, python3-pillow, libfreetype6-dev, libjpeg-dev, libopenjp2-7, zlib1g-dev, liblcms2-dev, libtiff5, libxcb1`
+* Python packages: `luma.oled, requests, pillow`
 
 ## Font
 
