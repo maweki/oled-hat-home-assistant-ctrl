@@ -53,16 +53,17 @@ class Entity:
     def name(self):
         try:
             return self._entity_obj["attributes"]["friendly_name"]
+                .replace("_", " ")
         except:
             return ""
 
     @property
     def state(self):
-        return self._entity_obj["state"] == "on"
+        return self._entity_obj["state"]
 
     @property
     def type(self):
-        return "script"
+        return self._entity_obj["entity_id"].split('.')[0]
 
     def toggle(self):
         print("toggle " + self._entity_obj["entity_id"])
@@ -71,6 +72,20 @@ class Entity:
         if self.type == "script":
             ret = requests.post(
                 self._config.api + 'services/script/toggle',
+                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+                headers=headers,
+            )
+
+        if self.type == "light":
+            ret = requests.post(
+                self._config.api + 'services/light/toggle',
+                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+                headers=headers,
+            )
+
+        if self.type == "switch":
+            ret = requests.post(
+                self._config.api + 'services/switch/toggle',
                 data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
                 headers=headers,
             )
@@ -315,6 +330,8 @@ def init_view(config):
             scriptname = state["entity_id"][7:]
             if scriptname in scripts_without_fields:
                 services.append(Entity(state, config))
+        if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch."):
+            services.append(Entity(state, config))
     View.items = services
 
     with shelve.open('favs') as db:
@@ -391,18 +408,34 @@ def render(device):
         for n, item in enumerate(items):
             if local_idx == n:
                 draw_color = "black"
+                inv_color = "white"
                 if not View.hold:
                     draw.rectangle([(0,20+n*6),(128,26+n*6)], fill="white")
                 else:
                     draw.rectangle([(1,21+n*6),(127,25+n*6)], fill="white")
             else:
                 draw_color = "white"
+                inv_color = "black"
+
             if item.type == "script":
-                if item.state:
+                if item.state == "on":
                     draw.polygon([(0,21+n*6),(0,25+n*6),(2,23+n*6)], fill=draw_color)
                     draw.polygon([(2,21+n*6),(2,25+n*6),(4,23+n*6)], fill=draw_color)
-                else:
+                elif item.state == "off":
                     draw.polygon([(0,21+n*6),(0,25+n*6),(4,23+n*6)], fill=draw_color)
+
+            if item.type == "light":
+                if item.state == "on":
+                    draw.ellipse([(0,21+n*6),(4,25+n*6)], fill=draw_color, outline=draw_color)
+                elif item.state == "off":
+                    draw.ellipse([(0,21+n*6),(4,25+n*6)], fill=inv_color, outline=draw_color)
+
+            if item.type == "switch":
+                if item.state == "on":
+                    draw.rectangle([(1,21+n*6),(3,25+n*6)], fill=draw_color, outline=draw_color)
+                elif item.state == "off":
+                    draw.rectangle([(1,21+n*6),(3,25+n*6)], fill=inv_color, outline=draw_color)
+
             draw.text((6,21+n*6), items[n].name, fill=draw_color, font=font_small)
 
 async def main():
