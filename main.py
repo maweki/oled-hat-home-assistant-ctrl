@@ -82,7 +82,7 @@ class Entity:
             elif self.state == "off":
                 context.polygon([(0,start),(0,start+4),(4,start+2)], fill=draw_color)
 
-        if self.type == "group":
+        elif self.type == "group":
             if self.state == "on":
                 context.rectangle([(0,start),(2,start+2)], fill=draw_color, outline=draw_color)
                 context.rectangle([(2,start+2),(4,start+4)], fill=draw_color, outline=draw_color)
@@ -90,17 +90,24 @@ class Entity:
                 context.rectangle([(0,start),(2,start+2)], fill=inv_color, outline=draw_color)
                 context.rectangle([(2,start+2),(4,start+4)], fill=inv_color, outline=draw_color)
 
-        if self.type == "light":
+        elif self.type == "light":
             if self.state == "on":
                 context.ellipse([(0,start),(4,start+4)], fill=draw_color, outline=draw_color)
             elif self.state == "off":
                 context.ellipse([(0,start),(4,start+4)], fill=inv_color, outline=draw_color)
 
-        if self.type == "switch":
+        elif self.type == "switch":
             if self.state == "on":
                 context.rectangle([(1,start),(3,start+4)], fill=draw_color, outline=draw_color)
             elif self.state == "off":
                 context.rectangle([(1,start),(3,start+4)], fill=inv_color, outline=draw_color)
+
+        elif self.type == "input_boolean":
+            if self.state == "on":
+                context.rectangle([(0,start),(4,start+4)], fill=inv_color, outline=draw_color)
+                context.point((2,start+2), fill=draw_color)
+            elif self.state == "off":
+                context.rectangle([(0,start),(4,start+4)], fill=inv_color, outline=draw_color)
 
         context.text((7,start), self.name, fill=draw_color, font=font)
 
@@ -354,7 +361,7 @@ def init_view(config):
             scriptname = state["entity_id"][7:]
             if scriptname in scripts_without_fields:
                 services[state["entity_id"]] = Entity(state, config)
-        if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch.") or state["entity_id"].startswith("group."):
+        if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch.") or state["entity_id"].startswith("group.") or state["entity_id"].startswith("input_boolean."):
             services[state["entity_id"]] = Entity(state, config)
 
     View.items = services
