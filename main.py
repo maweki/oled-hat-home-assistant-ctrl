@@ -82,6 +82,14 @@ class Entity:
             elif self.state == "off":
                 context.polygon([(0,start),(0,start+4),(4,start+2)], fill=draw_color)
 
+        if self.type == "group":
+            if self.state == "on":
+                context.rectangle([(0,start),(2,start+2)], fill=draw_color, outline=draw_color)
+                context.rectangle([(2,start+2),(4,start+4)], fill=draw_color, outline=draw_color)
+            elif self.state == "off":
+                context.rectangle([(0,start),(2,start+2)], fill=inv_color, outline=draw_color)
+                context.rectangle([(2,start+2),(4,start+4)], fill=inv_color, outline=draw_color)
+
         if self.type == "light":
             if self.state == "on":
                 context.ellipse([(0,start),(4,start+4)], fill=draw_color, outline=draw_color)
@@ -100,11 +108,18 @@ class Entity:
         print("toggle " + self._entity_obj["entity_id"])
         headers = get_headers(self._config.token)
 
-        ret = requests.post(
-            self._config.api + 'services/homeassistant/toggle',
-            data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-            headers=headers,
-        )
+        if self.type == "group" and self.state == "on":
+            ret = requests.post(
+                self._config.api + 'services/homeassistant/turn_off',
+                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+                headers=headers,
+            )
+        else:
+            ret = requests.post(
+                self._config.api + 'services/homeassistant/toggle',
+                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+                headers=headers,
+            )
 
         asyncio.create_task(self.update())
 
@@ -345,7 +360,7 @@ def init_view(config):
             scriptname = state["entity_id"][7:]
             if scriptname in scripts_without_fields:
                 services[state["entity_id"]] = Entity(state, config)
-        if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch."):
+        if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch.") or state["entity_id"].startswith("group."):
             services[state["entity_id"]] = Entity(state, config)
 
     View.items = services
