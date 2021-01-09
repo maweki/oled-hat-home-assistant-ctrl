@@ -27,8 +27,8 @@ KEY2_PIN       = 20
 KEY3_PIN       = 16
 
 class View:
-    favs = []
-    items = []
+    favs = ["","",""]
+    items = {}
     idx = 0
     temp_now = 0
     today = (0,0,"")
@@ -36,6 +36,10 @@ class View:
     timeout = 0
     notification = None
     hold = False
+
+    @staticmethod
+    def selected():
+        return list(View.items.values())[View.idx]
 
     @staticmethod
     def asleep():
@@ -50,10 +54,13 @@ class Entity:
         self._config = config
 
     @property
+    def entity_id(self):
+        return self._entity_obj["entity_id"]
+
+    @property
     def name(self):
         try:
-            return self._entity_obj["attributes"]["friendly_name"]
-                .replace("_", " ")
+            return self._entity_obj["attributes"]["friendly_name"].replace("_", " ")
         except:
             return ""
 
@@ -101,7 +108,6 @@ class Entity:
             headers=headers,
         )
         self._entity_obj = ret.json()
-View.favs = [Entity(None, None), Entity(None, None), Entity(None, None)]
 
 ### EVENTTYPES ###
 
@@ -159,7 +165,7 @@ async def update_states(config, queue):
         if not View.asleep():
             page = View.idx // 5
             local_idx = View.idx % 5
-            items = View.items[page*5:page*5+5]
+            items = set(list(View.items.values())[page*5:page*5+5])
             for item in items:
                 await item.update()
             await asyncio.sleep(5) # check and update every 5 seconds if not asleep
@@ -251,7 +257,7 @@ def _(event: StickAction, config):
     if event.action == KEY_LEFT_PIN:
         View.idx = max(View.idx - 5, 0)
     if event.action == KEY_PRESS_PIN and event.duration > HOLD_DURATION:
-        View.items[View.idx].toggle()
+        View.selected().toggle()
 
 @handle.register
 def _(event: KeyAction, config):
@@ -259,11 +265,11 @@ def _(event: KeyAction, config):
 
     if event.duration > HOLD_DURATION:
         # save
-        View.favs[idx] = View.items[View.idx]
+        View.favs[idx] = View.selected().entity_id
         with shelve.open('favs') as db:
             db['favs'] = View.favs
     else:
-        View.favs[idx].toggle()
+        View.items[View.favs[idx]].toggle()
 
 @handle.register
 def _(event: TimeoutTick, _):
@@ -324,14 +330,15 @@ def init_view(config):
         headers=headers,
     )
 
-    services = []
+    services = {}
     for state in ret.json():
         if state["entity_id"].startswith("script."):
             scriptname = state["entity_id"][7:]
             if scriptname in scripts_without_fields:
-                services.append(Entity(state, config))
+                services[state["entity_id"]] = Entity(state, config)
         if state["entity_id"].startswith("light.") or state["entity_id"].startswith("switch."):
-            services.append(Entity(state, config))
+            services[state["entity_id"]] = Entity(state, config)
+
     View.items = services
 
     with shelve.open('favs') as db:
@@ -353,7 +360,8 @@ def render(device):
 
         # Favorites
         for n, fav in enumerate(View.favs):
-            draw.text((0, n*6), str(n+1) + ": " + fav.name, anchor="lt", fill="white", font=font_small)
+            if fav in View.items:
+                draw.text((0, n*6), str(n+1) + ": " + View.items[fav].name, anchor="lt", fill="white", font=font_small)
 
         # full horizontal divider
         draw.line([(0,51),(128,51)], fill="white")
@@ -404,7 +412,7 @@ def render(device):
         # Script list
         page = View.idx // 5
         local_idx = View.idx % 5
-        items = View.items[page*5:page*5+5]
+        items = list(View.items.values())[page*5:page*5+5]
         for n, item in enumerate(items):
             if local_idx == n:
                 draw_color = "black"
