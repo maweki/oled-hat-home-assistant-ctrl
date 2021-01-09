@@ -14,7 +14,7 @@ import time
 import sys
 
 TIMEOUT = 300
-HOLD_DURATION = 0.5
+HOLD_DURATION = 0.4
 
 KEY_UP_PIN     = 6
 KEY_DOWN_PIN   = 19
