@@ -100,30 +100,15 @@ class Entity:
         print("toggle " + self._entity_obj["entity_id"])
         headers = get_headers(self._config.token)
 
-        if self.type == "script":
-            ret = requests.post(
-                self._config.api + 'services/script/toggle',
-                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-                headers=headers,
-            )
+        ret = requests.post(
+            self._config.api + 'services/homeassistant/toggle',
+            data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+            headers=headers,
+        )
 
-        if self.type == "light":
-            ret = requests.post(
-                self._config.api + 'services/light/toggle',
-                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-                headers=headers,
-            )
-
-        if self.type == "switch":
-            ret = requests.post(
-                self._config.api + 'services/switch/toggle',
-                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
-                headers=headers,
-            )
         asyncio.create_task(self.update())
 
     async def update(self):
-        print("update " + self._entity_obj["entity_id"])
         endpoint = self._config.api + 'states/' + self._entity_obj["entity_id"]
         headers = get_headers(self._config.token)
         self._last_update = time.time()
