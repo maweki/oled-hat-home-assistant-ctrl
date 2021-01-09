@@ -27,7 +27,7 @@ KEY2_PIN       = 20
 KEY3_PIN       = 16
 
 class View:
-    favs = ["","",""]
+    favs = []
     items = []
     idx = 0
     temp_now = 0
@@ -37,6 +37,56 @@ class View:
     notification = None
     hold = False
 
+    @staticmethod
+    def asleep():
+        return View.timeout > TIMEOUT
+
+### DEVICETYPES ###
+
+class Entity:
+    def __init__(self, entity_obj, config):
+        self._last_update = time.time()
+        self._entity_obj = entity_obj
+        self._config = config
+
+    @property
+    def name(self):
+        try:
+            return self._entity_obj["attributes"]["friendly_name"]
+        except:
+            return ""
+
+    @property
+    def state(self):
+        return self._entity_obj["state"] == "on"
+
+    @property
+    def type(self):
+        return "script"
+
+    def toggle(self):
+        print("toggle " + self._entity_obj["entity_id"])
+        headers = get_headers(self._config.token)
+
+        if self.type == "script":
+            ret = requests.post(
+                self._config.api + 'services/script/toggle',
+                data = json.dumps({"entity_id": self._entity_obj["entity_id"]}),
+                headers=headers,
+            )
+        asyncio.create_task(self.update())
+
+    async def update(self):
+        print("update " + self._entity_obj["entity_id"])
+        endpoint = self._config.api + 'states/' + self._entity_obj["entity_id"]
+        headers = get_headers(self._config.token)
+        self._last_update = time.time()
+        ret = requests.get(
+            endpoint,
+            headers=headers,
+        )
+        self._entity_obj = ret.json()
+View.favs = [Entity(None, None), Entity(None, None), Entity(None, None)]
 
 ### EVENTTYPES ###
 
@@ -87,6 +137,20 @@ async def update_scripts(config, queue):
     while True:
         await asyncio.sleep(60*60) # check and update hourly
         init_view(config)
+
+async def update_states(config, queue):
+    while True:
+
+        if not View.asleep():
+            page = View.idx // 5
+            local_idx = View.idx % 5
+            items = View.items[page*5:page*5+5]
+            for item in items:
+                await item.update()
+            await asyncio.sleep(5) # check and update every 5 seconds if not asleep
+        else:
+            await asyncio.sleep(1) # react immediately after waking up
+
 
 async def control(config, queue):
     import RPi.GPIO as GPIO
@@ -160,7 +224,7 @@ def _(event: Weather, _):
 
 @handle.register
 def _(event: StickAction, config):
-    if View.timeout > TIMEOUT:
+    if View.asleep():
         return
 
     if event.action == KEY_UP_PIN:
@@ -172,7 +236,7 @@ def _(event: StickAction, config):
     if event.action == KEY_LEFT_PIN:
         View.idx = max(View.idx - 5, 0)
     if event.action == KEY_PRESS_PIN and event.duration > HOLD_DURATION:
-        return call_service(config, View.items[View.idx])  ## needs to be async
+        View.items[View.idx].toggle()
 
 @handle.register
 def _(event: KeyAction, config):
@@ -184,7 +248,7 @@ def _(event: KeyAction, config):
         with shelve.open('favs') as db:
             db['favs'] = View.favs
     else:
-        return call_service(config, View.favs[idx])
+        View.favs[idx].toggle()
 
 @handle.register
 def _(event: TimeoutTick, _):
@@ -216,16 +280,6 @@ def _(event: requests.Response, _):
 
 ### MAIN ###
 
-def call_service(config, servicename): ## needs to be async
-    print("CALL SERVICE", servicename, config)
-    endpoint = config.api + 'services/script/' + servicename
-    headers = get_headers(config.token)
-    requests.post(
-        endpoint,
-        headers=headers,
-    )
-    return SetNotification(text=servicename)
-
 def get_headers(token):
     return { "Authorization" : "Bearer " + token,
              "Content-Type" : "application/json",
@@ -236,6 +290,7 @@ streams = [
     tick,
     control,
     update_scripts,
+    update_states,
 ]
 
 def init_view(config):
@@ -259,7 +314,7 @@ def init_view(config):
         if state["entity_id"].startswith("script."):
             scriptname = state["entity_id"][7:]
             if scriptname in scripts_without_fields:
-                services.append(scriptname)
+                services.append(Entity(state, config))
     View.items = services
 
     with shelve.open('favs') as db:
@@ -268,7 +323,7 @@ def init_view(config):
 
 
 def render(device):
-    if View.timeout > TIMEOUT:
+    if View.asleep():
         device.hide()
         return
     else:
@@ -281,7 +336,7 @@ def render(device):
 
         # Favorites
         for n, fav in enumerate(View.favs):
-            draw.text((0, n*6), str(n+1) + ": " + fav.replace("_", " "), anchor="lt", fill="white", font=font_small)
+            draw.text((0, n*6), str(n+1) + ": " + fav.name, anchor="lt", fill="white", font=font_small)
 
         # full horizontal divider
         draw.line([(0,51),(128,51)], fill="white")
@@ -335,14 +390,20 @@ def render(device):
         items = View.items[page*5:page*5+5]
         for n, item in enumerate(items):
             if local_idx == n:
-                draw.rectangle([(0,20+n*6),(128,26+n*6)], fill="white")
+                draw_color = "black"
                 if not View.hold:
-                    draw.polygon([(0,21+n*6),(0,25+n*6),(4,23+n*6)], fill="black")
+                    draw.rectangle([(0,20+n*6),(128,26+n*6)], fill="white")
                 else:
-                    draw.rectangle([(0,21+n*6),(4,25+n*6)], fill="black")
-                draw.text((6,21+n*6), items[n].replace("_", " "), fill="black", font=font_small)
+                    draw.rectangle([(1,21+n*6),(127,25+n*6)], fill="white")
             else:
-                draw.text((6,21+n*6), items[n].replace("_", " "), fill="white", font=font_small)
+                draw_color = "white"
+            if item.type == "script":
+                if item.state:
+                    draw.polygon([(0,21+n*6),(0,25+n*6),(2,23+n*6)], fill=draw_color)
+                    draw.polygon([(2,21+n*6),(2,25+n*6),(4,23+n*6)], fill=draw_color)
+                else:
+                    draw.polygon([(0,21+n*6),(0,25+n*6),(4,23+n*6)], fill=draw_color)
+            draw.text((6,21+n*6), items[n].name, fill=draw_color, font=font_small)
 
 async def main():
 
